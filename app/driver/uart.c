@@ -382,6 +382,7 @@ LOCAL void uart0_rx_intr_handler(void *para)
                 uart_tx_one_char(UART1, temp);	// 把数据通过串口 1输出
                 buf_idx++;
             }
+            uart_receive_data.len += fifo_len;
 
             WRITE_PERI_REG(UART_INT_CLR(UART0), UART_RXFIFO_TOUT_INT_CLR);	// 清除空闲标志位
 

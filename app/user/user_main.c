@@ -367,7 +367,7 @@ void ICACHE_FLASH_ATTR user_main(void *pvParameters)
 	}
 	os_printf("\n>>>>>>>>>> facility task start run\n");
 
-#if 0
+#if 1
 
 #if 1
 	xTaskCreate(tcp_communication_task, "tcp_communication_task", 256, NULL, tskIDLE_PRIORITY + 3, NULL);		// 建立 TCP连接

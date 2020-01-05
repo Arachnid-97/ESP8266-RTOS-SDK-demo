@@ -10,16 +10,10 @@
 #include "bsp_tcp.h"
 
 
-/******************************************************************************
- * FunctionName : user_TCP_Abnormal
- * Description  : tcp异常回调用户处理
- * Parameters   : none
- * Returns      : none
-*******************************************************************************/
-void ICACHE_FLASH_ATTR user_TCP_Abnormal(void)
-{
 
-}
+struct espconn user_tcp_conn;
+esp_tcp user_tcp;
+ip_addr_t user_server_ip;
 
 /******************************************************************************
  * FunctionName : user_TCP_Send
@@ -27,7 +21,7 @@ void ICACHE_FLASH_ATTR user_TCP_Abnormal(void)
  * Parameters   : none
  * Returns      : none
 *******************************************************************************/
-void ICACHE_FLASH_ATTR user_TCP_Send(void)
+void ICACHE_FLASH_ATTR user_TCP_Send(struct espconn *espconn)
 {
 
 }
@@ -38,7 +32,29 @@ void ICACHE_FLASH_ATTR user_TCP_Send(void)
  * Parameters   : none
  * Returns      : none
 *******************************************************************************/
-void ICACHE_FLASH_ATTR user_TCP_Reveive(void)
+void ICACHE_FLASH_ATTR user_TCP_Reveive(struct espconn *espconn, char *pusrdata, unsigned short length)
+{
+
+}
+
+/******************************************************************************
+ * FunctionName : user_TCP_Disconnect
+ * Description  : tcp断开回调用户处理
+ * Parameters   : none
+ * Returns      : none
+*******************************************************************************/
+void ICACHE_FLASH_ATTR user_TCP_Disconnect(struct espconn *pesp_conn)
+{
+
+}
+
+/******************************************************************************
+ * FunctionName : user_TCP_Abnormal
+ * Description  : tcp异常回调用户处理
+ * Parameters   : none
+ * Returns      : none
+*******************************************************************************/
+void ICACHE_FLASH_ATTR user_TCP_Abnormal(struct espconn *pesp_conn, sint8 err)
 {
 
 }
@@ -46,25 +62,35 @@ void ICACHE_FLASH_ATTR user_TCP_Reveive(void)
 /******************************************************************************
  * FunctionName : user_TCP_Client_Init
  * Description  : tcp client初始化
- * Parameters   : none
+ * Parameters   : arg -- the user tcp client network connection structure
  * Returns      : none
 *******************************************************************************/
-void ICACHE_FLASH_ATTR user_TCP_Client_Init(void)
+void ICACHE_FLASH_ATTR user_TCP_Client_Init(struct espconn *arg)
 {
-	const uint8 remote_ip[4] = {192, 168, 1, 1};
+	uint8_t remote_ip[4] = {192, 168, 2, 102};
+	user_tcp_conn.proto.tcp = (esp_tcp *) os_zalloc(sizeof(esp_tcp));
 
-	user_tcp_init(ESPCONN_TCP_CLIENT, (struct ip_addr *)remote_ip, USER_TCP_CLIENT_PORT);
+	memcpy(user_tcp_conn.proto.tcp->remote_ip, &remote_ip, 4);
+	user_tcp_conn.proto.tcp->remote_port = USER_TCP_CLIENT_PORT;
+
+	user_tcp_init(ESPCONN_TCP_CLIENT, &user_tcp_conn);
 }
 
 /******************************************************************************
  * FunctionName : user_TCP_Server_Init
  * Description  : tcp server初始化
- * Parameters   : none
+ * Parameters   : arg -- the user tcp server network connection structure
  * Returns      : none
 *******************************************************************************/
-void ICACHE_FLASH_ATTR user_TCP_Server_Init(void)
+void ICACHE_FLASH_ATTR user_TCP_Server_Init(struct espconn *arg)
 {
-	user_tcp_init(ESPCONN_TCP_SERVER, (struct ip_addr *)NULL, USER_TCP_SERVER_PORT);
+//	uint8_t local_ip[4] = {192, 168, 2, 105};
+	user_tcp_conn.proto.tcp = (esp_tcp *) os_zalloc(sizeof(esp_tcp));
+
+//	memcpy(user_tcp_conn.proto.tcp->local_ip, &local_ip, 4);
+	user_tcp_conn.proto.tcp->local_port = USER_TCP_SERVER_PORT;
+
+	user_tcp_init(ESPCONN_TCP_SERVER, &user_tcp_conn);
 }
 
 /******************************************************************************
@@ -87,10 +113,10 @@ void ICACHE_FLASH_ATTR tcp_communication_task(void *pvParameters)
 	}
 
 #if 1
-	user_TCP_Server_Init();
+	user_TCP_Server_Init(pvParameters);
 
 #else
-	user_TCP_Client_Init();
+	user_TCP_Client_Init(pvParameters);
 
 #endif
 

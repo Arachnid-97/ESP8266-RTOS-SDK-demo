@@ -31,7 +31,8 @@
 extern "C" {
 #endif
 
-void ICACHE_FLASH_ATTR user_udp_init(uint32 port);
+void ICACHE_FLASH_ATTR user_udp_init(struct espconn *arg);
+
 
 #ifdef __cplusplus
 }

@@ -10,13 +10,16 @@
 #include "bsp_udp.h"
 
 
+struct espconn udp_espconn;
+esp_udp espudp;
+
 /******************************************************************************
  * FunctionName : user_UDP_Send
  * Description  : udp发送回调用户处理
  * Parameters   : none
  * Returns      : none
 *******************************************************************************/
-void ICACHE_FLASH_ATTR user_UDP_Send(void)
+void ICACHE_FLASH_ATTR user_UDP_Send(void *arg)
 {
 
 }
@@ -27,7 +30,7 @@ void ICACHE_FLASH_ATTR user_UDP_Send(void)
  * Parameters   : none
  * Returns      : none
 *******************************************************************************/
-void ICACHE_FLASH_ATTR user_UDP_Reveive(void)
+void ICACHE_FLASH_ATTR user_UDP_Reveive(void *arg, char *pusrdata, unsigned short length)
 {
 
 }
@@ -40,6 +43,9 @@ void ICACHE_FLASH_ATTR user_UDP_Reveive(void)
 *******************************************************************************/
 void ICACHE_FLASH_ATTR udp_communication_task(void *pvParameters)
 {
+	udp_espconn.proto.udp = (esp_udp *) os_zalloc(sizeof(esp_udp));	// 分配空间
+	udp_espconn.proto.udp = &espudp;
+
 	os_printf("\n>>>>> UDP communication is being created.....\n");
 
 	while(1)
@@ -51,7 +57,8 @@ void ICACHE_FLASH_ATTR udp_communication_task(void *pvParameters)
 		vTaskDelay(300 / portTICK_RATE_MS);
 	}
 
-	user_udp_init(USER_UDP_PORT);
+	udp_espconn.proto.udp->local_port = USER_UDP_PORT;
+	user_udp_init(&udp_espconn);
 
 	vTaskDelete(NULL);
 }

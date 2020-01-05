@@ -28,26 +28,25 @@
 
 #include "bsp_tcp.h"
 
-LOCAL struct espconn esp_conn;
-LOCAL esp_tcp esptcp;
 
 /******************************************************************************
- * FunctionName : tcp_server_sent_cb
+ * FunctionName : tcp_sent_cb
  * Description  : data sent callback.
  * Parameters   : arg -- Additional argument to pass to the callback function
  * Returns      : none
 *******************************************************************************/
 LOCAL void ICACHE_FLASH_ATTR tcp_sent_cb(void *arg)
 {
-   //data sent successfully
+	//data sent successfully
+	struct espconn *pesp_conn = arg;
 
     os_printf(">>>>> tcp sent succeed !!! \r\n");
-    user_TCP_Send();
+    user_TCP_Send(pesp_conn);
 }
 
 
 /******************************************************************************
- * FunctionName : tcp_server_recv_cb
+ * FunctionName : tcp_recv_cb
  * Description  : receive callback.
  * Parameters   : arg -- Additional argument to pass to the callback function
  *                pusrdata -- The received data (or NULL when the connection has been closed!)
@@ -57,39 +56,43 @@ LOCAL void ICACHE_FLASH_ATTR tcp_sent_cb(void *arg)
 LOCAL void ICACHE_FLASH_ATTR tcp_recv_cb(void *arg, char *pusrdata, unsigned short length)
 {
    //received some data from tcp connection
-
    struct espconn *pespconn = arg;
+
    os_printf(">>>>> tcp recv : %s \r\n", pusrdata);
-   user_TCP_Reveive();
+   user_TCP_Reveive(pespconn, pusrdata, length);
 
 //   espconn_send(pespconn, pusrdata, length);
-
 }
 
 /******************************************************************************
- * FunctionName : tcp_server_discon_cb
+ * FunctionName : tcp_discon_cb
  * Description  : disconnect callback.
  * Parameters   : arg -- Additional argument to pass to the callback function
  * Returns      : none
 *******************************************************************************/
 LOCAL void ICACHE_FLASH_ATTR tcp_discon_cb(void *arg)
 {
-   //tcp disconnect successfully
+	//tcp disconnect successfully
+	struct espconn *pespconn = arg;
+
     os_printf(">>>>> tcp disconnect succeed !!! \r\n");
+    user_TCP_Disconnect(pespconn);
 }
 
 /******************************************************************************
- * FunctionName : tcp_server_recon_cb
+ * FunctionName : tcp_recon_cb
  * Description  : reconnect callback, error occured in TCP connection.
  * Parameters   : arg -- Additional argument to pass to the callback function
+ * 				  err -- error code
  * Returns      : none
 *******************************************************************************/
 LOCAL void ICACHE_FLASH_ATTR tcp_recon_cb(void *arg, sint8 err)
 {
-   //error occured , tcp connection broke.
+	//error occured , tcp connection broke.
+	struct espconn *pesp_conn = arg;
 
     os_printf(">>>>> reconnect callback, error code %d !!! \r\n",err);
-    user_TCP_Abnormal();
+    user_TCP_Abnormal(pesp_conn, err);
 }
 
 /******************************************************************************
@@ -98,9 +101,9 @@ LOCAL void ICACHE_FLASH_ATTR tcp_recon_cb(void *arg, sint8 err)
  * Parameters   : none
  * Returns      : none
 *******************************************************************************/
-LOCAL void tcp_server_multi_send(void)
+LOCAL void tcp_server_multi_send(void *arg)
 {
-   struct espconn *pesp_conn = &esp_conn;
+   struct espconn *pesp_conn = arg;
 
    remot_info *premot = NULL;
    uint8 count = 0;
@@ -122,14 +125,15 @@ LOCAL void tcp_server_multi_send(void)
 }
 
 /******************************************************************************
- * FunctionName : tcp_server_listen_cb
- * Description  : TCP server listened a connection successfully
+ * FunctionName : tcp_listen_cb
+ * Description  : TCP connection successful callback
  * Parameters   : arg -- Additional argument to pass to the callback function
  * Returns      : none
 *******************************************************************************/
 LOCAL void ICACHE_FLASH_ATTR tcp_listen_cb(void *arg)
 {
     struct espconn *pesp_conn = arg;
+
     os_printf(">>>>> tcp_listen !!! \r\n");
 
     espconn_regist_recvcb(pesp_conn, tcp_recv_cb);		// 设置接收回调
@@ -143,48 +147,51 @@ LOCAL void ICACHE_FLASH_ATTR tcp_listen_cb(void *arg)
 /******************************************************************************
  * FunctionName : tcp_init
  * Description  : parameter initialize as a TCP server/client
- * Parameters   : mode -- server/client, remote_ip -- remote ip addr, port -- server/client port
+ * Parameters   : mode -- server/client
+ * 				  arg -- Additional parameters passed in
  * Returns      : none
 *******************************************************************************/
-void ICACHE_FLASH_ATTR user_tcp_init(TCP_MODE_TYPE mode, struct ip_addr *remote_ip, uint32 port)
+void ICACHE_FLASH_ATTR user_tcp_init(TCP_MODE_TYPE mode, struct espconn *arg)
 {
 	struct ip_info info;
-	esp_conn.proto.tcp = (esp_tcp *) os_zalloc(sizeof(esp_tcp));	// 分配空间
 
-    esp_conn.type = ESPCONN_TCP;			// 创建TCP
-    esp_conn.state = ESPCONN_NONE;			// 一开始的状态,空闲状态
-    esp_conn.proto.tcp = &esptcp;			// 设置TCP的IP和回调函数存储用
-    esp_conn.proto.tcp->local_port = port;	// 监听的端口号
+	arg->type = ESPCONN_TCP;						// 创建TCP
+	arg->state = ESPCONN_NONE;						// 一开始的状态,空闲状态
 
-    /* 读取 station IP信息 */
-    wifi_get_ip_info(STATION_IF,&info);
-    esp_conn.proto.tcp->local_ip[0] = info.ip.addr;
-    esp_conn.proto.tcp->local_ip[1] = info.ip.addr >> 8;
-    esp_conn.proto.tcp->local_ip[2] = info.ip.addr >> 16;
-    esp_conn.proto.tcp->local_ip[3] = info.ip.addr >> 24;
-    os_printf("\n>>>>> TCP Local IP: %d.%d.%d.%d\n\n", esp_conn.proto.tcp->local_ip[0], \
-    		esp_conn.proto.tcp->local_ip[1], esp_conn.proto.tcp->local_ip[2], \
-				esp_conn.proto.tcp->local_ip[3]);
+	if(0 == arg->proto.tcp->local_ip[0] && 0 == arg->proto.tcp->local_ip[1]
+		 && 0 == arg->proto.tcp->local_ip[2] && 0 == arg->proto.tcp->local_ip[3]){
+	    /* 读取 station IP信息 */
+	    wifi_get_ip_info(STATION_IF,&info);
+	    arg->proto.tcp->local_ip[0] = info.ip.addr;
+	    arg->proto.tcp->local_ip[1] = info.ip.addr >> 8;
+	    arg->proto.tcp->local_ip[2] = info.ip.addr >> 16;
+	    arg->proto.tcp->local_ip[3] = info.ip.addr >> 24;
+	}
+
+    if(0 == arg->proto.tcp->local_port)
+    	arg->proto.tcp->local_port = espconn_port();	// 分配监听的端口号
 
     if(ESPCONN_TCP_CLIENT == mode){
-    	memcpy(esp_conn.proto.tcp->remote_ip, remote_ip, 4);
-    	esp_conn.proto.tcp->remote_port = port;			// 远程的端口号
-    	esp_conn.proto.tcp->local_port += 1;			// 监听的端口号
+        os_printf("\n>>>>> TCP Remote IP: %d.%d.%d.%d\n", arg->proto.tcp->remote_ip[0], \
+        		arg->proto.tcp->remote_ip[1], arg->proto.tcp->remote_ip[2], \
+				arg->proto.tcp->remote_ip[3]);
+        os_printf("\n>>>>> TCP Remote Port: %d\n\n", arg->proto.tcp->remote_port);
+    }else if(ESPCONN_TCP_SERVER == mode){
+		os_printf("\n>>>>> TCP Local IP: %d.%d.%d.%d\n", arg->proto.tcp->local_ip[0], \
+				arg->proto.tcp->local_ip[1], arg->proto.tcp->local_ip[2], \
+				arg->proto.tcp->local_ip[3]);
+		os_printf("\n>>>>> TCP Local Port: %d\n\n", arg->proto.tcp->local_port);
     }
-
-    espconn_regist_connectcb(&esp_conn, tcp_listen_cb);	// 注册 TCP 连接成功建立后的回调函数
-    espconn_regist_reconcb(&esp_conn, tcp_recon_cb);	// 注册 TCP 连接发生异常断开时的回调函数，可以在回调函数中进行重连
+    espconn_regist_connectcb(arg, tcp_listen_cb);	// 注册 TCP 连接成功建立后的回调函数
+    espconn_regist_reconcb(arg, tcp_recon_cb);	// 注册 TCP 连接发生异常断开时的回调函数，可以在回调函数中进行重连
 
     if(ESPCONN_TCP_SERVER == mode){
-		espconn_regist_time(&esp_conn, 180, 0); 		// 设置超时断开时间	单位：秒，最大值：7200 秒
-
-		espconn_accept(&esp_conn);						// 创建 TCP server，建立侦听
-
-		os_printf("\n>>>>> tcp server setup successful\n");
+		espconn_regist_time(arg, 180, 0); 		// 设置超时断开时间	单位：秒，最大值：7200 秒
+		espconn_accept(arg);						// 创建 TCP server，建立侦听
+		os_printf("\n>>>>> tcp server setup successful\n\n");
     }else if(ESPCONN_TCP_CLIENT == mode){
-    	espconn_connect(&esp_conn);						// 创建 TCP client，启用连接
-
-    	os_printf("\n>>>>> tcp client setup successful\n");
+    	espconn_connect(arg);						// 创建 TCP client，启用连接
+    	os_printf("\n>>>>> tcp client setup successful\n\n");
     }
 }
 

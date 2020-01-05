@@ -37,7 +37,8 @@ typedef enum {
     ESPCONN_TCP_CLIENT,    		 /**< TCP CLIENT    */
 }TCP_MODE_TYPE;
 
-void ICACHE_FLASH_ATTR user_tcp_init(TCP_MODE_TYPE mode, struct ip_addr *remote_ip, uint32 port);
+void ICACHE_FLASH_ATTR user_tcp_init(TCP_MODE_TYPE mode, struct espconn *arg);
+
 
 #ifdef __cplusplus
 }
